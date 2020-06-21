@@ -1,0 +1,42 @@
+Instructions
+Get the name of stocks displayed along with other information
+
+Data Description
+NYSE data with "," as delimiter is available in HDFS
+
+NYSE data information:
+
+HDFS location: /public/nyse
+There is no header in the data
+NYSE Symbols data with tab character (\t) as delimiter is available in HDFS
+
+NYSE Symbols data information:
+
+HDFS location: /public/nyse_symbols
+First line is header and it should be included
+Output Requirements
+Get all NYSE details along with stock name if exists, if not stockname should be empty
+Column Order: stockticker, stockname, transactiondate, openprice, highprice, lowprice, closeprice, volume
+Delimiter: ,
+File Format: text
+Place the data in the HDFS directory
+/user/`whoami`/problem18/solution/
+Replace `whoami` with your OS user name
+
+Sol:
+
+nyse = spark.read. \
+format('csv'). \
+schema('stockticker string, transactiondate string, openprice float, highprice float, lowprice float, closeprice float, volume float'). \
+load('/public/nyse')
+
+nyse_symbols = spark.read. \
+format('csv'). \
+option('sep','\t'). \
+option('header','true'). \
+option('inferSchema','true'). \
+load('/public/nyse_symbols')
+
+nyse_joined = nyse.join(nyse_symbols,nyse.stockticker==nyse_symbols.Symbol,'left').withColumn('stockname',col('Description')).select('stockticker', col('stockname'), 'transactiondate', 'openprice', 'highprice', 'lowprice', 'closeprice', 'volume')
+
+nyse_joined.write.mode('overwrite').format('csv').option('sep',',').save('/user/swarajnewar/web_problem18/solution/')
