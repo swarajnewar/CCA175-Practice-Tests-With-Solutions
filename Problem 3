@@ -1,0 +1,31 @@
+Instructions
+Get top 3 crime types based on number of incidents in RESIDENCE area using "Location Description"
+
+Data Description
+Data is available in HDFS under /public/crime/csv
+
+crime data information:
+
+Structure of data: (ID, Case Number, Date, Block, IUCR, Primary Type, Description, Location Description, Arrst, Domestic, Beat, District, Ward, Community Area, FBI Code, X Coordinate, Y Coordinate, Year, Updated on, Latitude, Longitude, Location)
+File format - text file
+Delimiter - "," (use regex while splitting split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", -1), as there are some fields with comma and enclosed using double quotes.
+Output Requirements
+Output Fields: crime_type, incident_count
+Output File Format: JSON
+Delimiter: N/A
+Compression: No
+Place the output file in the HDFS directory
+/user/`whoami`/problem3/solution/
+Replace `whoami` with your OS user name
+
+Sol:
+
+from pyspark.sql.functions import *
+
+crime_raw = spark.read.format(‘csv’).option(‘header’,‘true’).load(’/public/crime/csv/crime_data.csv’)
+
+crime_stage = crime_raw.select(col(‘Primary Type’).alias(‘crime_type’), col(‘Location Description’).alias(‘location’)).where(col(‘location’)==‘RESIDENCE’)
+
+crime_analysis = crime_stage.groupBy(crime_stage.crime_type).agg(count(crime_stage.crime_type).alias(‘Cnt’)).orderBy(col(‘Cnt’).desc()).limit(3)
+
+crime_analysis.write.format(‘json’).mode(‘overwrite’).save(’/user/swarajnewar/solutions/solution03/RESIDENCE_AREA_CRIMINAL_TYPE_DATA’)
