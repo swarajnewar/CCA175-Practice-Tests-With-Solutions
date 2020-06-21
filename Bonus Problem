@@ -1,0 +1,54 @@
+Details - Duration 40 minutes
+Data set URL 825
+Choose language of your choice Python or Scala
+Data is available in HDFS file system under /public/crime/csv
+You can check properties of files using hadoop fs -ls -h /public/crime/csv
+Structure of data (ID,Case Number,Date,Block,IUCR,Primary Type,Description,Location Description,Arrest,Domestic,Beat,District,Ward,Community Area,FBI Code,X Coordinate,Y Coordinate,Year,Updated On,Latitude,Longitude,Location)
+File format - text file
+Delimiter - “,”
+Get monthly count of primary crime type, sorted by month in ascending and number of crimes per type in descending order
+Store the result in HDFS path /user/<YOUR_USER_ID>/solutions/solution01/crimes_by_type_by_month
+Output File Format: TEXT
+Output Columns: Month in YYYYMM format, crime count, crime type
+Output Delimiter: \t (tab delimited)
+Output Compression: gzip
+
+Sol:
+
+DF APIs approach:
+pyspark --master yarn --conf spark.ui.port=0 --num-executors=6 --executor-memory=3G --executor-cores=2
+
+from pyspark.sql.functions import *
+
+crime = spark.read.format(‘csv’).option(‘header’,‘true’).load(’/public/crime/csv/crime_data.csv’)
+
+crime_filtered = crime.select(col(‘Date’).alias(‘date’), col(‘Primary Type’).alias(‘crime_type’))
+
+crime_df = crime_filtered.withColumn(‘date’,to_timestamp(substring(‘date’,1,10), ‘MM/dd/yyyy’))
+
+crimeDF = crime_df.withColumn(‘month’, date_format(‘date’,‘YYYYMM’))
+
+crimeFinal = crimeDF.groupBy(‘month’,‘crime_type’).agg(count(‘crime_type’).alias(‘Cnt’)).orderBy(‘month’,col(‘Cnt’).desc())
+
+crimeSave = crimeFinal.selectExpr(“concat(month,’\t’,crime_type,’\t’,Cnt)”).coalesce(2)
+
+crimeSave.write.format(‘text’).mode(‘overwrite’).option(‘codec’,‘gzip’).save(’/user/swarajnewar/solutions/solutions01/crimeData’)
+
+DF-SQL approach:
+pyspark --master yarn --conf spark.ui.port=0 --num-executors=6 --executor-memory=3G --executor-cores=2
+
+from pyspark.sql.functions import *
+
+crime_raw = spark.read.format(‘csv’).option(‘header’,‘true’).load(’/public/crime/csv/crime_data.csv’).withColumn(‘date’,to_timestamp(substring(‘Date’,1,10), ‘MM/dd/yyyy’)).withColumn(‘crimeType’, col(‘Primary Type’))
+
+crime_stage = crime_raw.select(crime_raw.date, crime_raw.crimeType)
+
+crime_stage.createOrReplaceTempView(‘crime_stage’)
+
+crime_analysis = spark.sql(“select date, date_format(date,‘YYYYMM’) as month, crimeType from crime_stage”)
+
+crime_analysis.createOrReplaceTempView(‘crime_analysis’)
+
+crime_save = spark.sql(“select month, COUNT(*) as Cnt, crimeType from crime_analysis GROUP BY month, crimeType ORDER BY month, Cnt DESC”).coalesce(2)
+
+crime_save.write.format(‘csv’).mode(‘overwrite’).option(‘sep’,’\t’).option(‘codec’, ‘gzip’).save(’/user/swarajnewar/solutions/solutions01/crimeDataSQL’)
