@@ -1,0 +1,29 @@
+Instructions
+Get total number of orders for each customer where the cutomer_state = 'TX'
+
+Data Description
+retail_db data is available in HDFS at /public/retail_db
+
+retail_db data information:
+
+Source directories: /public/retail_db/orders and /public/retail_db/customers
+Source Columns - orders - order_id, order_date, order_customer_id, order_status
+Source Columns - customers - customer_id, customer_fname, customer_lname, customer_state (8th column) and many more
+delimiter: (",")
+Output Requirements
+Output Fields: customer_fname, customer_lname, order_count
+File Format: text
+Delimiter: Tab character (\t)
+Place the result file in the HDFS directory
+/user/`whoami`/problem6/solution/
+Replace `whoami` with your OS user name
+
+
+Sol:
+
+customersTX = customers.where(customers.customer_state=='TX').join(orders, customers.customer_id==orders.order_customer_id).groupBy('customer_id').agg(count('customer_id').alias('order_count')).orderBy(col('order_count').desc())
+customersOut = customersTX.join(customers, customersTX.customer_id==customers.customer_id).select('customer_lname','customer_fname','order_count')
+customersOut.coalesce(2).write.mode('overwrite').format('csv').option('sep','\t').save('/user/swarajnewar/web_problem6/solution/')
+
+cus = customers.where(col('_c7')=='TX').join(orders,customers._c0==orders.order_customer_id).groupBy(col('_c1').alias('customer_fname'),col('_c2').alias('customer_lname')).agg(count(col('_c1')).alias('order_count'))
+cus.coalesce(1).write.mode('overwrite').format('csv').option('sep','\t').save('/user/swarajnewar/problem6/solution/')
