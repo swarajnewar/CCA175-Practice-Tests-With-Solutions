@@ -33,3 +33,4 @@ customersNoOrders = customers.join(orders, orders.order_customer_id == customers
 customersNOFinal = customersNoOrders.selectExpr(“concat(_c1,’, ',_c2)”).coalesce(1)
 
 customersNOFinal.write.mode(‘overwrite’).text(’/user/swarajnewar/solutions/solutions02/inactive_customers’)
+
