@@ -1,0 +1,62 @@
+Instructions
+List the names of the Top 5 products by revenue ordered on '2013-07-26'. Revenue is considered only for COMPLETE and CLOSED orders.
+
+Data Description
+retail_db data is available in HDFS at /public/retail_db
+
+retail_db data information:
+
+Source directories:
+/public/retail_db/orders
+/public/retail_db/order_items
+/public/retail_db/products
+Source delimiter: comma(",")
+Source Columns - orders - order_id, order_date, order_customer_id, order_status
+Source Columns - order_itemss - order_item_id, order_item_order_id, order_item_product_id, order_item_quantity, order_item_subtotal, order_item_product_price
+Source Columns - products - product_id, product_category_id, product_name, product_description, product_price, product_image
+Output Requirements
+Target Columns: order_date, order_revenue, product_name, product_category_id
+Data has to be sorted in descending order by order_revenue
+File Format: text
+Delimiter: colon (:)
+Place the output file in the HDFS directory
+/user/`whoami`/problem7/solution/
+Replace `whoami` with your OS user name
+
+Sol #1:
+
+orders = spark.read. \
+format('csv'). \
+schema('order_id int, order_date string, order_customer_id int, order_status string'). \
+load('/user/swarajnewar/retail_db/orders')
+
+order_items = spark.read. \
+format('csv'). \
+schema('''order_item_id int, 
+		order_item_order_id int, 
+		order_item_product_id int, 
+		order_item_quantity int,
+		order_item_subtotal float,
+		order_item_product_price float
+	 '''). \
+load('/user/swarajnewar/retail_db/order_items')
+
+products = spark.read. \
+format('csv'). \
+schema('product_id int, product_category_id int, product_name string, product_description string, product_price float, product_image string'). \
+load('/user/swarajnewar/retail_db/products')
+
+ordersFiltered = orders.where(orders.order_status.isin('COMPLETE','CLOSED')).where(date_format(orders.order_date,'yyyy-MM-dd')=='2013-07-26')
+ordersOrderItemJoined = order_items.join(ordersFiltered,ordersFiltered.order_id==order_items.order_item_order_id).groupBy('order_date','order_item_product_id').agg(round(sum('order_item_subtotal'),2).alias('order_revenue'))
+orderRevenueProductsJoined = ordersOrderItemJoined.join(products,ordersOrderItemJoined.order_item_product_id==products.product_id).select('order_date','order_revenue','product_name','product_category_id').orderBy(col('order_revenue').desc())
+orderRevenueProductsJoined.coalesce(2).write.mode('overwrite').format('csv').option('sep',':').save('/user/swarajnewar/web_problem7/solution/')
+
+Sol#2:
+
+orders.createOrReplaceTempView('orders')
+order_items.createOrReplaceTempView('order_items')
+products.createOrReplaceTempView('products')
+
+orderOrderItems = spark.sql("select o.order_date, oi.order_item_product_id, round(sum(oi.order_item_subtotal),2) as order_revenue from orders o JOIN order_items oi ON o.order_id=oi.order_item_order_id where date_format(o.order_date,'yyyy-MM-dd')='2013-07-26' AND o.order_status IN ('COMPLETE','CLOSED') GROUP BY o.order_date, oi.order_item_product_id")
+orderOrderItems.createOrReplaceTempView('orderOrderItems')
+spark.sql("select o.order_date, o.order_revenue, p.product_name, p.product_category_id from orderOrderItems o JOIN products p ON o.order_item_product_id = p.product_id ORDER BY o.order_revenue DESC")
