@@ -1,0 +1,35 @@
+Instructions
+Get the customers who have not placed any orders, sorted by customer_lname and then customer_fname
+
+Data Description
+Data is available in local file system /data/retail_db
+
+retail_db information:
+
+Source directories: /data/retail_db/orders and /data/retail_db/customers
+Source delimiter: comma(",")
+Source Columns - orders - order_id, order_date, order_customer_id, order_status
+Source Columns - customers - customer_id, customer_fname, customer_lname and many more
+Output Requirements
+Target Columns: customer_lname, customer_fname
+Number of Files: 1
+Place the output file in the HDFS directory
+/user/`whoami`/problem2/solution/
+Replace `whoami` with your OS user name
+File format should be text
+delimiter is (",")
+Compression: Uncompressed
+
+ Sol:
+
+Here’s my solution using pyspark shell ; count comes to 30:
+
+orders = spark.read.format(‘csv’).schema(‘order_id int, order_date string, order_customer_id int, order_status string’).load(’/user/swarajnewar/retail_db/orders’)
+
+customers = spark.read.format(‘csv’).load(’/user/swarajnewar/retail_db/customers’)
+
+customersNoOrders = customers.join(orders, orders.order_customer_id == customers._c0, ‘left’).where(orders.order_status.isNull()).select(’_c1’,’_c2’).orderBy(’_c1’,’_c2’)
+
+customersNOFinal = customersNoOrders.selectExpr(“concat(_c1,’, ',_c2)”).coalesce(1)
+
+customersNOFinal.write.mode(‘overwrite’).text(’/user/swarajnewar/solutions/solutions02/inactive_customers’)
