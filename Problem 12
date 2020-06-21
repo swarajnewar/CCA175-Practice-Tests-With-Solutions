@@ -1,0 +1,29 @@
+Instructions
+Get top 5 employers for year 2016 where the status is WITHDRAWN or CERTIFIED-WITHDRAWN or DENIED
+
+Data Description
+h1b data with ascii null "\0" as delimiter is available in HDFS
+
+h1b data information:
+
+HDFS Location: /public/h1b/h1b_data
+Ignore first record which is header of the data
+YEAR is 7th field in the data
+STATUS is 2nd field in the data
+EMPLOYER is 3rd field in the data
+There are some LCAs for which YEAR is NA, ignore those records
+Output Requirements
+File Format: parquet
+Output Fields: employer_name, lca_count
+Data needs to be in descending order by count
+Place the output files in the HDFS directory
+/user/`whoami`/problem12/solution/
+Replace `whoami` with your OS user name
+
+
+Sol:
+
+h1b_raw = spark.read.format('csv').option('sep','\0').load('/public/h1b/h1b_data')
+h1b_stage = h1b_raw.where("_c7='2016' AND _c1 IN ('WITHDRAWN','CERTIFIED-WITHDRAWN','DENIED')")
+h1b_analysis = h1b_stage.groupBy('_c3').agg(count('_c3').alias('lca_count')).withColumn('employer_name',col('_c3')).select(col('employer_name'),col('lca_count')).orderBy(col('lca_count').desc()).limit(5)
+h1b_analysis.write.mode('overwrite').format('parquet').save('/user/swarajnewar/web_problem12/solution/')
