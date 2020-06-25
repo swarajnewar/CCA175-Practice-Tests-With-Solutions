@@ -1,4 +1,4 @@
-# CCA-Developer-Practice-Tests-With-Solutions
+# CCA175-Practice-Tests-With-Solutions
 Solutions to the practice tests provided at http://nn02.itversity.com/cca175/ by ITVersity.
 
 DISCLAIMER :
