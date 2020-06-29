@@ -1,0 +1,29 @@
+Instructions
+Get top n traded stocks by volume each month from NYSE data within a given year.
+
+Data Description
+NYSE data with "," as delimiter is available in HDFS
+
+NYSE data information:
+
+HDFS location: /public/nyse
+There is no header in the data
+NYSE Symbols data with " " as delimiter is available in HDFS
+
+Sol:
+
+Taking the year as 2016 and n as 5 :
+
+nyse = spark.read. \
+format('csv'). \
+schema('stockticker string, transactiondate string, openprice float, highprice float, lowprice float, closeprice float, volume float'). \
+load('/public/nyse')
+
+top5StockByVolume2016 =
+nyse.withColumn(‘transactiondate’,to_timestamp(‘transactiondate’, ‘yyyyMMdd’)).
+where(date_format(‘transactiondate’,‘yyyy’)==‘2016’).
+withColumn(‘month’, date_format(‘transactiondate’,‘MM’)).
+withColumn(‘rnk’, rank().over(Window.partitionBy(col(‘month’)).
+orderBy(nyse.volume.desc()))).
+where(col(‘rnk’)<=5).
+orderBy(col(‘month’))
